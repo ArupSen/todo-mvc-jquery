@@ -1,5 +1,4 @@
 /*global jQuery, Handlebars, Router */
-jQuery(function ($) {
   'use strict';
 
   Handlebars.registerHelper('eq', function (a, b, options) {
@@ -41,7 +40,7 @@ jQuery(function ($) {
     // can be called with one or two args to get or set
     store: function (namespace, data) {
       if (arguments.length > 1) {
-        return localStorage.setItem(namespace, JSON.stringify(data));
+        localStorage.setItem(namespace, JSON.stringify(data));
       } else {
         var store = localStorage.getItem(namespace);
         return (store && JSON.parse(store)) || [];
@@ -52,9 +51,9 @@ jQuery(function ($) {
   var App = {
     init: function () {
       this.todos = util.store('todos-jquery');
-      this.todoTemplate = Handlebars.compile($('#todo-template').html());
-      this.footerTemplate = Handlebars.compile($('#footer-template').html());
-      this.bindEvents();
+      this.todoTemplate = Handlebars.compile(document.getElementById('todo-template').innerHTML);
+      this.footerTemplate = Handlebars.compile(document.getElementById('footer-template').innerHTML);
+      //this.bindEvents();
 
       /**
        * Routing uses director.js
@@ -67,27 +66,18 @@ jQuery(function ($) {
         }.bind(this)
       }).init('/all');
     },
-    // set the this reference to App rather than the element
-    // jQuery by default sets this to the element selected
-    bindEvents: function () {
-      $('#new-todo').on('keyup', this.create.bind(this));
-      $('#toggle-all').on('change', this.toggleAll.bind(this));
-      $('#footer').on('click', '#clear-completed', this.destroyCompleted.bind(this));
-      $('#todo-list')
-        .on('change', '.toggle', this.toggle.bind(this))
-        .on('dblclick', 'label', this.edit.bind(this))
-        .on('keyup', '.edit', this.editKeyup.bind(this))
-        .on('focusout', '.edit', this.update.bind(this))
-        .on('click', '.destroy', this.destroy.bind(this));
-    },
     // uses Handlebar template to create html layout
     render: function () {
       var todos = this.getFilteredTodos();
-      $('#todo-list').html(this.todoTemplate(todos));
-      $('#main').toggle(todos.length > 0);
-      $('#toggle-all').prop('checked', this.getActiveTodos().length === 0);
+      document.getElementById('todo-list').innerHTML = this.todoTemplate(todos);
+      //$('#main').toggle(todos.length > 0);
+      todos.length > 0 ? document.getElementById('main').style.display = 'block' :
+      document.getElementById('main').style.display = 'none';
+      //$('#toggle-all').prop('checked', this.getActiveTodos().length === 0);
+       this.getActiveTodos().length === 0 ? document.getElementById('toggle-all').checked = true :
+       document.getElementById('toggle-all').checked = false;
       this.renderFooter();
-      $('#new-todo').focus();
+      document.getElementById('new-todo').focus();
       util.store('todos-jquery', this.todos);
     },
     renderFooter: function () {
@@ -100,10 +90,13 @@ jQuery(function ($) {
         filter: this.filter
       });
 
-      $('#footer').toggle(todoCount > 0).html(template);
+      //$('#footer').toggle(todoCount > 0).html(template);
+       document.getElementById('footer').innerHTML = template;
+       todoCount > 0 ? document.getElementById('footer').style.display = 'block' :
+       document.getElementById('footer').style.display = 'none';
     },
     toggleAll: function (e) {
-      var isChecked = $(e.target).prop('checked');
+      var isChecked = e.target.checked;
 
       this.todos.forEach(function (todo) {
         todo.completed = isChecked;
@@ -150,7 +143,7 @@ jQuery(function ($) {
     // accepts an element from inside the `.item` div and
     // returns the corresponding index in the `todos` array
     indexFromEl: function (el) {
-      var id = $(el).closest('li').data('id');
+      var id = el.closest('li').getAttribute('data-id');
       var todos = this.todos;
       var i = todos.length;
 
@@ -161,8 +154,8 @@ jQuery(function ($) {
       }
     },
     create: function (e) {
-      var $input = $(e.target);//$ is a convention for jquery var
-      var val = $input.val().trim(); //remove whitespace
+      var $input = e.target;//$ is a convention for jquery var
+      var val = $input.value.trim(); //remove whitespace
 
       if (e.which !== ENTER_KEY || !val) {
         return;
@@ -177,7 +170,7 @@ jQuery(function ($) {
         completed: false // initialised to false
       });
 
-      $input.val('');//reset the value (text) to empty
+      $input.value = '';//reset the value (text) to empty
 
       this.render();
     },
@@ -187,8 +180,9 @@ jQuery(function ($) {
       this.render();
     },
     edit: function (e) {
-      var $input = $(e.target).closest('li').addClass('editing').find('.edit');
-      $input.val($input.val()).focus();
+      var $input = e.target.parentElement.parentElement.querySelector('.edit');
+      e.target.parentElement.parentElement.className = 'editing';
+      $input.focus();
     },
     editKeyup: function (e) {
       // the which property of the event tells which key was pressed
@@ -198,21 +192,21 @@ jQuery(function ($) {
       }
 
       if (e.which === ESCAPE_KEY) {
-        $(e.target).data('abort', true).blur();
+        e.target.setAttribute('abort', true);
+        e.target.blur();
       }
     },
     update: function (e) {
       var el = e.target;
-      var $el = $(el);
-      var val = $el.val().trim();
+      var val = el.value.trim();
 
       if (!val) {
         this.destroy(e);
         return;
       }
 
-      if ($el.data('abort')) {
-        $el.data('abort', false);
+      if (el.getAttribute('abort')) {
+        el.setAttribute('abort', false);
       } else {
         this.todos[this.indexFromEl(el)].title = val;
       }
@@ -225,5 +219,48 @@ jQuery(function ($) {
     }
   };
 
+// here are the handlers, not in an object just on their own
+      document.getElementById('new-todo').addEventListener('keyup', function(event) {
+        if (event.target.id === 'new-todo') {
+          App.create(event);
+        }
+      });
+      document.getElementById('toggle-all').addEventListener('change', function(event) {
+        if (event.target.id === 'toggle-all') {
+          App.toggleAll(event);
+        }
+      });
+      document.getElementById('footer').addEventListener('click', function(event) {
+        if (event.target.id === 'clear-completed') {
+          App.destroyCompleted();
+        }
+      });
+
+      var todoList = document.getElementById('todo-list');
+      todoList.addEventListener('change', function(event) {
+        if (event.target.className === 'toggle') {
+          App.toggle(event);
+        }
+      });
+      todoList.addEventListener('dblclick', function(event) {
+        if (event.target.tagName === 'LABEL') {
+          App.edit(event);
+        }
+      });
+      todoList.addEventListener('keyup', function(event) {
+        if (event.target.className === 'edit') {
+          App.editKeyup(event);
+        }
+      });
+      todoList.addEventListener('focusout', function(event) {
+        if (event.target.className === 'edit') {
+          App.update(event);
+        }
+      });
+      todoList.addEventListener('click', function(event) {
+        if (event.target.className === 'destroy') {
+          App.destroy(event);
+        }
+      });
+
   App.init();
-});
